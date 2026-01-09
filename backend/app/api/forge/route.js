@@ -170,8 +170,16 @@ function parseResponse(rawResponse) {
  * - Invalid input → 400
  * - Gemini failure / invalid JSON → 500
  * - Never expose raw AI output or stack traces
+ * 
+ * Logging rules:
+ * - Log high-level lifecycle events only
+ * - Do not log full user narrative
+ * - Do not log full AI response
+ * - Logs should help debugging, not leak data
  */
 export async function POST(request) {
+  console.log('[/api/forge] Request received');
+  
   try {
     // Parse JSON body
     let body;
@@ -179,6 +187,7 @@ export async function POST(request) {
       body = await request.json();
     } catch (err) {
       // Invalid JSON in request body → 400
+      console.log('[/api/forge] Invalid JSON in request body');
       return NextResponse.json(
         {
           success: false,
@@ -198,6 +207,7 @@ export async function POST(request) {
     const validation = validateNarrative(narrative);
     if (!validation.valid) {
       // Invalid input → 400
+      console.log('[/api/forge] Validation failed:', validation.error);
       return NextResponse.json(
         {
           success: false,
@@ -214,11 +224,13 @@ export async function POST(request) {
     // Call Gemini AI
     let rawResponse;
     try {
+      console.log('[/api/forge] Calling Gemini API');
       const prompt = buildPrompt(narrative);
       rawResponse = await callGemini(prompt);
+      console.log('[/api/forge] Gemini API call successful');
     } catch (err) {
       // Gemini API failure → 500
-      console.error('[/api/forge] Gemini API error:', err);
+      console.error('[/api/forge] Gemini API error:', err.message);
       return NextResponse.json(
         {
           success: false,
@@ -235,10 +247,12 @@ export async function POST(request) {
     // Parse AI response as JSON
     let roadmap;
     try {
+      console.log('[/api/forge] Parsing AI response');
       roadmap = parseResponse(rawResponse);
+      console.log('[/api/forge] Response parsed successfully');
     } catch (err) {
       // Invalid JSON from AI → 500
-      console.error('[/api/forge] Parse error:', err);
+      console.error('[/api/forge] Parse error:', err.message);
       return NextResponse.json(
         {
           success: false,
@@ -253,6 +267,7 @@ export async function POST(request) {
     }
 
     // Return parsed JSON response
+    console.log('[/api/forge] Request completed successfully');
     return NextResponse.json(
       {
         success: true,
@@ -266,7 +281,7 @@ export async function POST(request) {
     );
   } catch (error) {
     // Unexpected error → 500
-    console.error('[/api/forge] Unexpected error:', error);
+    console.error('[/api/forge] Unexpected error:', error.message);
 
     // Never expose stack traces or raw error details
     return NextResponse.json(
