@@ -31,7 +31,7 @@ function getGenAI() {
  */
 export async function callGemini(prompt) {
   const ai = getGenAI();
-  const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   try {
     const result = await model.generateContent(prompt);
