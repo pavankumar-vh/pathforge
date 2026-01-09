@@ -163,8 +163,17 @@ function parseResponse(rawResponse) {
  * {
  *   "success": boolean,
  *   "data": { ...roadmap },
- *   "error": string | null
+ *   "error": {
+ *     "message": "string",
+ *     "code": "FORGE_FAILED | INVALID_INPUT | AI_ERROR"
+ *   } | null
  * }
+ * 
+ * Error codes:
+ * - INVALID_INPUT: Validation errors (400)
+ * - AI_ERROR: Gemini API or parsing failures (500)
+ * - FORGE_FAILED: Unexpected errors (500)
+ * Frontend will rely on error.code
  * 
  * Error handling:
  * - Invalid input → 400
@@ -192,7 +201,10 @@ export async function POST(request) {
         {
           success: false,
           data: null,
-          error: 'Invalid JSON in request body',
+          error: {
+            message: 'Invalid JSON in request body',
+            code: 'INVALID_INPUT'
+          }
         },
         { 
           status: 400,
@@ -212,7 +224,10 @@ export async function POST(request) {
         {
           success: false,
           data: null,
-          error: validation.error,
+          error: {
+            message: validation.error,
+            code: 'INVALID_INPUT'
+          }
         },
         { 
           status: 400,
@@ -235,7 +250,10 @@ export async function POST(request) {
         {
           success: false,
           data: null,
-          error: 'AI service temporarily unavailable',
+          error: {
+            message: 'AI service temporarily unavailable',
+            code: 'AI_ERROR'
+          }
         },
         { 
           status: 500,
@@ -257,7 +275,10 @@ export async function POST(request) {
         {
           success: false,
           data: null,
-          error: 'Failed to process AI response',
+          error: {
+            message: 'Failed to process AI response',
+            code: 'AI_ERROR'
+          }
         },
         { 
           status: 500,
@@ -288,7 +309,10 @@ export async function POST(request) {
       {
         success: false,
         data: null,
-        error: 'Internal server error',
+        error: {
+          message: 'Internal server error',
+          code: 'FORGE_FAILED'
+        }
       },
       { 
         status: 500,
