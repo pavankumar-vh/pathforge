@@ -24,10 +24,10 @@ export function validateNarrative(narrative) {
   // Trim and check length
   const trimmed = narrative.trim();
   
-  if (trimmed.length < 10) {
+  if (trimmed.length < 30) {
     return {
       valid: false,
-      error: 'Narrative must be at least 10 characters long',
+      error: 'Narrative must be at least 30 characters long',
     };
   }
 
