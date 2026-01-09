@@ -6,75 +6,94 @@ import { validateNarrative } from '@/lib/validation';
  * Builds the prompt for Gemini API
  */
 function buildPrompt(narrative) {
-  return `You are a career counselor and strategic planner. Based on the following narrative about a person's career background and aspirations, create a detailed career roadmap.
+  return `You are a deterministic career analysis system. Analyze the following narrative and output ONLY valid JSON with no markdown, no explanations, no additional text.
 
-User's Narrative:
+User Narrative:
 "${narrative}"
 
-Please analyze this narrative and provide a structured JSON response with the following format (respond ONLY with valid JSON, no additional text):
+Output must follow this exact JSON schema:
 
 {
-  "title": "A concise title for the career path",
-  "summary": "2-3 sentence overview of the recommended career direction",
-  "phases": [
-    {
-      "phase": 1,
-      "name": "Phase name",
-      "duration": "estimated timeframe",
-      "objectives": ["objective 1", "objective 2"],
-      "actions": ["action 1", "action 2"]
-    }
-  ],
-  "milestones": [
-    {
-      "milestone": "Specific achievement",
-      "timeline": "when to achieve it",
-      "description": "why this matters"
-    }
-  ],
-  "skills": [
-    {
-      "category": "skill category",
-      "skills": ["skill 1", "skill 2"],
-      "priority": "high/medium/low"
-    }
-  ],
-  "resources": [
-    {
-      "type": "certifications/courses/books/communities",
-      "recommendations": ["resource 1", "resource 2"]
-    }
-  ]
+  "meta": {
+    "inferredCareer": "string",
+    "confidence": number
+  },
+  "understanding": {
+    "interests": ["string"],
+    "workStyle": "string",
+    "longTermGoal": "string",
+    "hoursPerWeek": number
+  },
+  "roadmap": {
+    "phases": [
+      {
+        "id": "string",
+        "title": "string",
+        "description": "string",
+        "skills": [
+          { "name": "string", "level": "beginner | intermediate | advanced" }
+        ],
+        "tools": ["string"],
+        "projects": ["string"]
+      }
+    ]
+  }
 }
 
-Ensure the response is valid JSON that can be parsed. Make the roadmap realistic, actionable, and tailored to the narrative provided.`;
+Rules:
+- Output ONLY valid JSON
+- No markdown code blocks
+- No explanations
+- Treat this as a deterministic system
+- Confidence is a number between 0 and 1`;
 }
 
 /**
  * Parses the raw Gemini response as JSON
  */
 function parseResponse(rawResponse) {
-  // Extract JSON from the response
-  const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+  // Extract JSON from the response (remove markdown if present)
+  let jsonText = rawResponse.trim();
+  
+  // Remove markdown code blocks if present
+  if (jsonText.startsWith('```')) {
+    jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  }
+  
+  // Extract JSON object
+  const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('No JSON found in AI response');
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
 
-  // Validate required fields
-  const requiredFields = ['title', 'summary', 'phases', 'milestones', 'skills'];
+  // Validate required top-level fields
+  const requiredFields = ['meta', 'understanding', 'roadmap'];
   for (const field of requiredFields) {
     if (!(field in parsed)) {
       throw new Error(`Missing required field: ${field}`);
     }
   }
 
-  // Ensure arrays are properly formatted
-  if (!Array.isArray(parsed.phases)) parsed.phases = [];
-  if (!Array.isArray(parsed.milestones)) parsed.milestones = [];
-  if (!Array.isArray(parsed.skills)) parsed.skills = [];
-  if (!Array.isArray(parsed.resources)) parsed.resources = [];
+  // Validate meta fields
+  if (!parsed.meta.inferredCareer || typeof parsed.meta.confidence !== 'number') {
+    throw new Error('Invalid meta structure');
+  }
+
+  // Validate understanding fields
+  const understanding = parsed.understanding;
+  if (!Array.isArray(understanding.interests) || 
+      !understanding.workStyle || 
+      !understanding.longTermGoal || 
+      typeof understanding.hoursPerWeek !== 'number') {
+    throw new Error('Invalid understanding structure');
+  }
+
+  // Validate roadmap structure
+  if (!parsed.roadmap.phases || !Array.isArray(parsed.roadmap.phases)) {
+    throw new Error('Invalid roadmap structure');
+  }
 
   return parsed;
 }
