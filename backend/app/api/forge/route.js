@@ -88,11 +88,17 @@ function parseResponse(rawResponse) {
   }
 
   // Ensure meta structure with safe defaults
+  /**
+   * Normalize confidence score:
+   * - Ensure value is between 0 and 100
+   * - Clamp values outside range
+   * - Default to 60 if missing
+   */
   const meta = {
     inferredCareer: parsed.meta?.inferredCareer || 'Unknown Career Path',
     confidence: typeof parsed.meta?.confidence === 'number' 
-      ? Math.max(0, Math.min(1, parsed.meta.confidence)) 
-      : 0.5
+      ? Math.max(0, Math.min(100, parsed.meta.confidence)) 
+      : 60
   };
 
   // Ensure understanding structure with safe defaults
