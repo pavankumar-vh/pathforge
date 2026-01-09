@@ -114,9 +114,15 @@ function parseResponse(rawResponse) {
   };
 
   // Ensure roadmap structure with safe defaults
+  /**
+   * Ensure roadmap phases:
+   * - Have unique IDs
+   * - Are ordered logically
+   * - Use stable ID format (phase-1, phase-2, etc.)
+   */
   const phases = Array.isArray(parsed.roadmap?.phases) 
     ? parsed.roadmap.phases.map((phase, index) => ({
-        id: phase.id || `phase-${index + 1}`,
+        id: `phase-${index + 1}`,
         title: phase.title || `Phase ${index + 1}`,
         description: phase.description || '',
         skills: Array.isArray(phase.skills) 
