@@ -115,16 +115,39 @@ function parseResponse(rawResponse) {
  *   "data": { ...roadmap },
  *   "error": string | null
  * }
+ * 
+ * Error handling:
+ * - Invalid input → 400
+ * - Gemini failure / invalid JSON → 500
+ * - Never expose raw AI output or stack traces
  */
 export async function POST(request) {
   try {
     // Parse JSON body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (err) {
+      // Invalid JSON in request body → 400
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: 'Invalid JSON in request body',
+        },
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
     const { narrative } = body;
 
     // Validate narrative exists and meets length requirement
     const validation = validateNarrative(narrative);
     if (!validation.valid) {
+      // Invalid input → 400
       return NextResponse.json(
         {
           success: false,
@@ -138,12 +161,46 @@ export async function POST(request) {
       );
     }
 
-    // Call helper function to run Gemini AI
-    const prompt = buildPrompt(narrative);
-    const rawResponse = await callGemini(prompt);
+    // Call Gemini AI
+    let rawResponse;
+    try {
+      const prompt = buildPrompt(narrative);
+      rawResponse = await callGemini(prompt);
+    } catch (err) {
+      // Gemini API failure → 500
+      console.error('[/api/forge] Gemini API error:', err);
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: 'AI service temporarily unavailable',
+        },
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     // Parse AI response as JSON
-    const roadmap = parseResponse(rawResponse);
+    let roadmap;
+    try {
+      roadmap = parseResponse(rawResponse);
+    } catch (err) {
+      // Invalid JSON from AI → 500
+      console.error('[/api/forge] Parse error:', err);
+      return NextResponse.json(
+        {
+          success: false,
+          data: null,
+          error: 'Failed to process AI response',
+        },
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     // Return parsed JSON response
     return NextResponse.json(
@@ -158,14 +215,15 @@ export async function POST(request) {
       }
     );
   } catch (error) {
-    console.error('[/api/forge] Error:', error.message);
+    // Unexpected error → 500
+    console.error('[/api/forge] Unexpected error:', error);
 
-    // Handle errors gracefully with proper status codes
+    // Never expose stack traces or raw error details
     return NextResponse.json(
       {
         success: false,
         data: null,
-        error: error.message || 'Internal server error',
+        error: 'Internal server error',
       },
       { 
         status: 500,
