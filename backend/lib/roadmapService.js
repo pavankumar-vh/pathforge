@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * Responsibilities:
  * - Initialize Gemini using API key from environment variables
  * - Expose a function that takes a prompt string
- * - Call Gemini model (gemini-1.5-flash)
+ * - Call Gemini model (gemini-2.5-flash)
  * - Return raw text response
  */
 
@@ -31,7 +31,7 @@ function getGenAI() {
  */
 export async function callGemini(prompt) {
   const ai = getGenAI();
-  const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   try {
     const result = await model.generateContent(prompt);
