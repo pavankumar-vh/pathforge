@@ -57,15 +57,21 @@ Rules:
  * - Never returns partial or malformed data to frontend
  */
 function parseResponse(rawResponse) {
-  // Extract JSON from the response (remove markdown if present)
+  // Sanitize AI output
   let jsonText = rawResponse.trim();
   
-  // Remove markdown code blocks if present
+  // Remove leading/trailing backticks if present
   if (jsonText.startsWith('```')) {
-    jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    jsonText = jsonText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
   }
   
-  // Extract JSON object
+  // Remove any remaining backticks
+  jsonText = jsonText.replace(/^`+|`+$/g, '');
+  
+  // Trim whitespace again after backtick removal
+  jsonText = jsonText.trim();
+  
+  // Ensure pure JSON string - extract JSON object
   const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('No JSON found in AI response');
