@@ -36,7 +36,24 @@ Output must follow this exact JSON schema:
         "tools": ["string"],
         "projects": ["string"]
       }
-    ]
+    ],
+    "resources": {
+      "learning": [
+        {
+          "skill": "string",
+          "type": "youtube | documentation | course",
+          "title": "string",
+          "description": "string"
+        }
+      ],
+      "communities": [
+        {
+          "name": "string",
+          "platform": "discord | reddit | forum",
+          "purpose": "string"
+        }
+      ]
+    }
   }
 }
 
@@ -45,7 +62,41 @@ Rules:
 - No markdown code blocks
 - No explanations
 - Treat this as a deterministic system
-- Confidence is a number between 0 and 1`;
+- Confidence is a number between 0 and 100
+
+/**
+ * Career-aware filtering:
+ * - Resources must align with inferredCareer
+ * - Do not suggest irrelevant tools or skills
+ * - Keep roadmap focused, not bloated
+ */
+
+/**
+ * Improve project suggestions:
+ * - Projects should increase in complexity across phases
+ * - Projects must align with real-world expectations
+ * - Avoid vague project names like "Build an app"
+ * - Each project should sound resume-worthy
+ */
+
+/**
+ * In addition to roadmap phases, also generate learning resources.
+ *
+ * Resource rules:
+ * - Prefer YouTube channels, official docs, and free courses
+ * - Resources must map clearly to skills in the roadmap
+ * - No links required, only titles and descriptions
+ * - Avoid generic or vague resources
+ * - Resources should help a beginner start immediately
+ * - Resources must be relevant to the inferred career
+ * - Avoid paid-only platforms unless unavoidable
+ * 
+ * Resource quality rules:
+ * - No duplicated resources
+ * - No overly generic titles
+ * - Prefer well-known creators or official documentation
+ * - Descriptions should explain WHY the resource matters
+ */`;
 }
 
 /**
@@ -138,12 +189,82 @@ function parseResponse(rawResponse) {
       }))
     : [];
 
-  // Return stable, complete response
+  /**
+   * Extend the backend response to include learning resources.
+   *
+   * New field to add:
+   * roadmap.resources
+   *
+   * Structure:
+   * {
+   *   "resources": {
+   *     "learning": [
+   *       {
+   *         "skill": "string",
+   *         "type": "youtube | documentation | course",
+   *         "title": "string",
+   *         "description": "string"
+   *       }
+   *     ],
+   *     "communities": [
+   *       {
+   *         "name": "string",
+   *         "platform": "discord | reddit | forum",
+   *         "purpose": "string"
+   *       }
+   *     ]
+   *   }
+   * }
+   *
+   * Rules:
+   * - Resources must be relevant to the inferred career
+   * - Avoid paid-only platforms unless unavoidable
+   */
+  
+  /**
+   * Ensure each major skill in the roadmap has
+   * at least one learning resource mapped to it.
+   *
+   * If a skill has no resource:
+   * - Add a reasonable default resource suggestion
+   */
+  const resources = {
+    learning: Array.isArray(parsed.roadmap?.resources?.learning)
+      ? parsed.roadmap.resources.learning.map(resource => ({
+          skill: resource.skill || 'General',
+          type: ['youtube', 'documentation', 'course'].includes(resource.type)
+            ? resource.type
+            : 'documentation',
+          title: resource.title || 'Learning Resource',
+          description: resource.description || 'Resource for skill development'
+        }))
+      : [],
+    communities: Array.isArray(parsed.roadmap?.resources?.communities)
+      ? parsed.roadmap.resources.communities.map(community => ({
+          name: community.name || 'Community',
+          platform: ['discord', 'reddit', 'forum'].includes(community.platform)
+            ? community.platform
+            : 'forum',
+          purpose: community.purpose || 'Community support and networking'
+        }))
+      : []
+  };
+
+  /**
+   * Final response must include:
+   * - meta
+   * - understanding
+   * - roadmap.phases
+   * - roadmap.resources
+   *
+   * If resources are missing, backend must fail safely.
+   */
   return {
     meta,
     understanding,
     roadmap: {
-      phases
+      phases,
+      resources
     }
   };
 }
