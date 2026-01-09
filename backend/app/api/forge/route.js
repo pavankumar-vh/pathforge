@@ -50,6 +50,11 @@ Rules:
 
 /**
  * Parses the raw Gemini response as JSON
+ * 
+ * Enforces backend response stability:
+ * - Ensures all required top-level keys exist
+ * - Adds safe defaults for optional/missing fields
+ * - Never returns partial or malformed data to frontend
  */
 function parseResponse(rawResponse) {
   // Extract JSON from the response (remove markdown if present)
@@ -76,26 +81,53 @@ function parseResponse(rawResponse) {
     }
   }
 
-  // Validate meta fields
-  if (!parsed.meta.inferredCareer || typeof parsed.meta.confidence !== 'number') {
-    throw new Error('Invalid meta structure');
-  }
+  // Ensure meta structure with safe defaults
+  const meta = {
+    inferredCareer: parsed.meta?.inferredCareer || 'Unknown Career Path',
+    confidence: typeof parsed.meta?.confidence === 'number' 
+      ? Math.max(0, Math.min(1, parsed.meta.confidence)) 
+      : 0.5
+  };
 
-  // Validate understanding fields
-  const understanding = parsed.understanding;
-  if (!Array.isArray(understanding.interests) || 
-      !understanding.workStyle || 
-      !understanding.longTermGoal || 
-      typeof understanding.hoursPerWeek !== 'number') {
-    throw new Error('Invalid understanding structure');
-  }
+  // Ensure understanding structure with safe defaults
+  const understanding = {
+    interests: Array.isArray(parsed.understanding?.interests) 
+      ? parsed.understanding.interests 
+      : [],
+    workStyle: parsed.understanding?.workStyle || 'Not specified',
+    longTermGoal: parsed.understanding?.longTermGoal || 'Career growth and development',
+    hoursPerWeek: typeof parsed.understanding?.hoursPerWeek === 'number' 
+      ? Math.max(0, parsed.understanding.hoursPerWeek) 
+      : 20
+  };
 
-  // Validate roadmap structure
-  if (!parsed.roadmap.phases || !Array.isArray(parsed.roadmap.phases)) {
-    throw new Error('Invalid roadmap structure');
-  }
+  // Ensure roadmap structure with safe defaults
+  const phases = Array.isArray(parsed.roadmap?.phases) 
+    ? parsed.roadmap.phases.map((phase, index) => ({
+        id: phase.id || `phase-${index + 1}`,
+        title: phase.title || `Phase ${index + 1}`,
+        description: phase.description || '',
+        skills: Array.isArray(phase.skills) 
+          ? phase.skills.map(skill => ({
+              name: skill.name || 'Unnamed skill',
+              level: ['beginner', 'intermediate', 'advanced'].includes(skill.level) 
+                ? skill.level 
+                : 'beginner'
+            }))
+          : [],
+        tools: Array.isArray(phase.tools) ? phase.tools : [],
+        projects: Array.isArray(phase.projects) ? phase.projects : []
+      }))
+    : [];
 
-  return parsed;
+  // Return stable, complete response
+  return {
+    meta,
+    understanding,
+    roadmap: {
+      phases
+    }
+  };
 }
 
 
